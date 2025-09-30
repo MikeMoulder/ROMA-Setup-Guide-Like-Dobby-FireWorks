@@ -106,3 +106,108 @@ Navigate to your docker folder and create a new filename "Caddyfile" no extensio
     }
 }
 ```
+Next is to setup your Docker Compose, in that same docker directory, you'll see a file name called docker-compose.yml, scroll down and add this part to make reference to you caddy file & also your new server which we will complete soon
+
+```
+# NEW SERVER PROXY SERVICE
+  proxy:
+    build:
+      context: ../proxy-backend # Adjust path if server.js is elsewhere
+      dockerfile: Dockerfile.proxy
+    container_name: sentient-proxy
+    expose:
+      - "4000:4000" # Expose the port defined in server.js (const PORT = 4000)
+    # The proxy server needs the .env file to run if it uses environment variables
+    env_file:
+      - ../.env 
+    depends_on:
+      - backend # It depends on the backend API it proxies to
+      
+# CADDY SERVICE
+  caddy:
+    image: caddy:latest
+    container_name: sentient-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+      - proxy # Add dependency on the new proxy service
+
+volumes:
+  caddy_data:
+  caddy_config:
+```
+Save it and go back to your "proxy-backend" folder that was created earlier and create a new file and name it "Dockerfile.proxy" and paste this inside it, the name must match "Dockerfile.proxy"
+
+```
+# Dockerfile.proxy
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+# Copy the server file
+COPY server.js .
+# Expose the port (informative only)
+EXPOSE 4000
+CMD ["node", "server.js"]
+```
+Save everything and open your terminal and run this to apply changes made
+```
+cd docker
+
+docker compose -f docker-compose.yml down
+docker compose -f docker-compose.yml up -d
+```
+Use this to view docker logs
+```
+cd docker
+docker compose logs -f
+```
+Everything should be up and running, you should be able to make calls to your backend using POST method via the URL you created earlier. How? 
+
+## Step 5: Make API Calls To ROMA Like Dobby AI on FireWorks
+You can create a new project on your device or anywhere, to make API calls, you can use the method below.
+- First to check if server is up and working (server health)
+
+```
+const PROXY_IP = 'https://api-roma-sentient-rex.duckdns.org/proxy';
+const PROXY_HEALTH_URL = `${PROXY_IP}/health`;
+
+try {
+const response = await fetch(PROXY_HEALTH_URL);
+if (response.ok) {
+    const data = await response.json();
+    updateStatus('Connected', 'success', data);
+} else {
+    const errorData = await response.json();
+    updateStatus(`Error ${response.status}`, 'error', errorData);
+}
+} catch (error) {
+updateStatus('Offline', 'error', { error: error.message });
+}
+```
+
+- Second, to make API request to a prompt, use this
+```
+const PROXY_IP = 'https://api-roma-sentient-rex.duckdns.org/proxy';
+const PROXY_RESEARCH_URL = `${PROXY_IP}/research`;
+
+try {
+const response = await fetch(PROXY_RESEARCH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic }),
+});
+
+if (response.ok) {
+    const data = await response.json();
+    console.log(data.final_output);
+    }
+```
