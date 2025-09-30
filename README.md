@@ -196,6 +196,9 @@ updateStatus('Offline', 'error', { error: error.message });
 
 - Second, to make API request to a prompt, use this
 ```
+const prompt = "your prompt";
+
+const topic = prompt.value.trim();
 const PROXY_IP = 'https://api-roma-sentient-rex.duckdns.org/proxy';
 const PROXY_RESEARCH_URL = `${PROXY_IP}/research`;
 
